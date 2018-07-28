@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package>
+  <metadata>
+    <id>Harmony.NET</id>
+    <title>Harmony.NET</title>
+    <version>0.1.0</version>
+    <authors>John Lynch</authors>
+    <owners>John Lynch</owners>
+    <licenseUrl>https://github.com/jlynch630/Harmony.NET/blob/master/LICENSE</licenseUrl>
+    <projectUrl>https://github.com/jlynch630/Harmony.NET</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>Library for interacting with Logitech Harmony Hubs over WebSockets</description>
+    <tags>harmony logitech hub</tags>
+    <copyright>Copyright 2018 John Lynch</copyright>
+
+    
+    <dependencies>
+      <dependency id="Newtonsoft.Json" version="11.0.2" />
+    </dependencies>
+  </metadata>
+</package>
