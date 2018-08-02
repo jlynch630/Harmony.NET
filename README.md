@@ -2,7 +2,7 @@ Harmony.NET
 ===========
 
 Harmony.NET is an API that enables local-network websocket communication with Logitech Harmony Hubs. Harmony.NET makes it easy to start and stop activities, press remote buttons, and more in .NET.
-Compatible with both .NET Core and the Windows .NET Framework.
+Built with .NET Standard 2.0, compatible with .NET Core.
 
 To quickly get started, [install](#installation) the package and head down to the [quickstart](#quickstart) below.
 
