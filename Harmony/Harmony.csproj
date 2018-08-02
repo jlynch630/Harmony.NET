@@ -10,6 +10,14 @@
     <FileVersion>1.0.0.0</FileVersion>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <DocumentationFile>C:\Users\jlync\Documents\Visual Studio 2017\Projects\HarmonyHub\Harmony\Harmony.xml</DocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <DocumentationFile>C:\Users\jlync\Documents\Visual Studio 2017\Projects\HarmonyHub\Harmony\Harmony.xml</DocumentationFile>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Newtonsoft.JSON" Version="11.0.2" />
   </ItemGroup>
