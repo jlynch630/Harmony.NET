@@ -98,7 +98,6 @@ namespace Harmony {
 			Socket UDPSocket =
 				new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) {
 					                                                                           EnableBroadcast = true,
-					                                                                           DontFragment = true,
 					                                                                           MulticastLoopback = false
 				                                                                           };
 
