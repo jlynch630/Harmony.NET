@@ -66,13 +66,13 @@ From there, the first step is to get a reference to a `Hub`. This can be done in
 	These properties can be retrieved from an existing Hub via:
 
 	```csharp
-	string IP = Hub.Info.IP
+	string IP = Hub.Info.IP;
 	string RemoteID = Hub.Info.RemoteId;
 	```
 	Or HubInfo via:
 
 	```csharp
-	string IP = HubInfo.IP
+	string IP = HubInfo.IP;
 	string RemoteID = HubInfo.RemoteId;
 	``` 
 
@@ -118,7 +118,7 @@ Using the Hub
 The first step after obtaining a `Hub` instance is to connect to it using the `DeviceID` from earlier:
 
 ```csharp
-await Hub.ConnectAsync(ClientID)
+await Hub.ConnectAsync(ClientID);
 ```
 
 **Note**: `ConnectAsync`, like most methods in Harmony.NET, is asynchronous. This means you should probably `await` it in an `async` function for best performance.
