@@ -60,7 +60,7 @@ namespace Harmony {
 		public int RebroadcastDelay { get; set; } = 5000;
 
 		/// <summary>
-		///     Broadcasts availibility and waits for clients to identify
+		///     Broadcasts availability and waits for clients to identify
 		/// </summary>
 		public void StartDiscovery() {
 			this.BroadcastCancellationTokenSource = new CancellationTokenSource();
@@ -175,9 +175,9 @@ namespace Harmony {
 			if (!ClientData.Contains(";")) return;
 
 			HubInfo HubInfo = HubInfo.Parse(ClientData);
-			if (this.FoundHubIDs.Contains(HubInfo.HubId)) return;
+			if (this.FoundHubIDs.Contains(HubInfo.UUID)) return;
 
-			this.FoundHubIDs.Add(HubInfo.HubId);
+			this.FoundHubIDs.Add(HubInfo.UUID);
 			this.HubFound?.Invoke(this, new HubFoundEventArgs(HubInfo));
 		}
 
