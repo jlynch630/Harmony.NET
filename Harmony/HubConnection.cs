@@ -19,7 +19,7 @@ namespace Harmony {
 	/// <summary>
 	///     A WebSocket connection to a Hub and low-level methods to interface with it
 	/// </summary>
-	internal class HubConnection {
+	internal class HubConnection : IDisposable {
 		/// <summary>
 		///     The ID to use when sending messages over the WebSocket
 		/// </summary>
@@ -89,7 +89,7 @@ namespace Harmony {
 		}
 
 		/// <summary>
-		///     Sends a command with no parameters, and recieves a response of type <typeparamref name="T" />
+		///     Sends a command with no parameters, and receives a response of type <typeparamref name="T" />
 		/// </summary>
 		/// <typeparam name="T">The type of response data</typeparam>
 		/// <param name="commandName">The name of the command to execute</param>
@@ -98,7 +98,7 @@ namespace Harmony {
 			await this.SendCommand<T>(commandName, null);
 
 		/// <summary>
-		///     Sends a command with the specified parameters, and recieves a response of type T
+		///     Sends a command with the specified parameters, and receives a response of type T
 		/// </summary>
 		/// <typeparam name="T">The type of response data</typeparam>
 		/// <param name="commandName">The name of the command to execute</param>
@@ -124,7 +124,7 @@ namespace Harmony {
 		}
 
 		/// <summary>
-		///     Recieves a message on the WebSocket
+		///     Receives a message on the WebSocket
 		/// </summary>
 		/// <returns>The data received</returns>
 		private async Task<string> ReceiveStringMessage() {
@@ -159,5 +159,11 @@ namespace Harmony {
 			ArraySegment<byte> DataBytes = new ArraySegment<byte>(Encoding.UTF8.GetBytes(data));
 			await this.WebSocket.SendAsync(DataBytes, WebSocketMessageType.Text, true, CancellationToken.None);
 		}
+
+		/// <inheritdoc />
+		/// <summary>
+		/// 	Disposes resources used by this <see cref="T:Harmony.HubConnection" />
+		/// </summary>
+		public void Dispose() => this.WebSocket.Dispose();
 	}
 }

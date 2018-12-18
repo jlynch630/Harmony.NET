@@ -24,7 +24,7 @@ namespace Harmony {
 		"ReSharper",
 		"CompareOfFloatsByEqualityOperator",
 		Justification = "Status codes are statically defined, never determined via math.")]
-	public class Hub {
+	public class Hub : IDisposable {
 		/// <summary>
 		///     The time that the WebSocket connection was initiated
 		/// </summary>
@@ -77,7 +77,7 @@ namespace Harmony {
 		public HubInfo Info { get; private set; }
 
 		/// <summary>
-		///     Gets or sets the milisecond difference between repeated commands. For example, setting this to 200 would mean
+		///     Gets or sets the millisecond difference between repeated commands. For example, setting this to 200 would mean
 		///     sequential commands executed with a default delay of 400ms would have a 600ms delay, then 200ms, then 600ms, etc.
 		/// </summary>
 		public int RepeatedCommandAdjustment { get; set; } = 200;
@@ -198,7 +198,7 @@ namespace Harmony {
 		/// </summary>
 		/// <param name="model">The model name of the device to find</param>
 		/// <param name="manufacturer">The manufacturer of the device to find</param>
-		/// <returns>The device with the matching model and maufacturer, or null if there is none</returns>
+		/// <returns>The device with the matching model and manufacturer, or null if there is none</returns>
 		public Device GetDeviceByModel(string model, string manufacturer) =>
 			this.Sync.Devices.FirstOrDefault(x => x.Model == model && x.Manufacturer == manufacturer);
 
@@ -267,7 +267,7 @@ namespace Harmony {
 		///     Minimum delay of 400ms
 		/// </summary>
 		/// <param name="delay">
-		///     The delay between button presses. This will be altered by +/- 200 miliseconds every command:
+		///     The delay between button presses. This will be altered by +/- 200 milliseconds every command:
 		///     otherwise Harmony won't accept the commands
 		/// </param>
 		/// <param name="functions">The functions to execute</param>
@@ -297,7 +297,7 @@ namespace Harmony {
 		///     Minimum delay of 400ms
 		/// </summary>
 		/// <param name="delay">
-		///     The delay between button presses. This will be altered by +/- 200 miliseconds every command:
+		///     The delay between button presses. This will be altered by +/- 200 milliseconds every command:
 		///     otherwise Harmony won't accept the commands
 		/// </param>
 		/// <param name="functions">The functions to execute</param>
@@ -324,7 +324,7 @@ namespace Harmony {
 		public Task StartActivity(Activity activity) => this.RunActivity(activity, true);
 
 		/// <summary>
-		///     Starts holding down the given function until <code>StopHolding</code> is called
+		///     Starts holding down the given function until <see cref="StopHolding"/> is called
 		/// </summary>
 		/// <param name="function">The function to hold down</param>
 		public void StartHolding(Function function) {
@@ -464,6 +464,12 @@ namespace Harmony {
 				this.ActivityProgress?.Invoke(this, new ActivityProgressEventArgs(activity, Progress));
 			}
 		}
+
+		/// <inheritdoc />
+		/// <summary>
+		/// 	Disposes resources used by this <see cref="Hub" />
+		/// </summary>
+		public void Dispose() => this.Connection.Dispose();
 	}
 
 	/// <inheritdoc />
