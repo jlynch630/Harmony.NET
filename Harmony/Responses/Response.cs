@@ -5,7 +5,7 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-namespace Harmony {
+namespace Harmony.Responses {
 	using Harmony.JSON;
 
 	using Newtonsoft.Json;
@@ -14,7 +14,7 @@ namespace Harmony {
 	///     A Harmony Hub WebSocket response message
 	/// </summary>
 	/// <typeparam name="T">The type of the response data</typeparam>
-	internal class Response<T> {
+	public class Response<T> {
 		/// <summary>
 		///     Gets or sets the status code for the response, which can have a decimal component. 200 indicates success
 		/// </summary>
@@ -50,7 +50,7 @@ namespace Harmony {
 	/// <summary>
 	///     A Harmony Hub WebSocket response with string data
 	/// </summary>
-	internal class StringResponse : Response<string> {
+	public class StringResponse : Response<string> {
 		/// <summary>
 		///     Gets or sets the serialized response data JSON
 		/// </summary>
