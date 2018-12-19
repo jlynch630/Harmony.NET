@@ -6,7 +6,6 @@
 // -----------------------------------------------------------------------
 
 namespace Harmony.CommandParameters {
-
 	using Newtonsoft.Json;
 
 	/// <inheritdoc />

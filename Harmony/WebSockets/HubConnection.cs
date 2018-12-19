@@ -5,16 +5,14 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-using Harmony.Events;
-using Harmony.Responses;
-
 namespace Harmony.WebSockets {
 	using System;
 	using System.Net.WebSockets;
-	using System.Threading;
 	using System.Threading.Tasks;
 
-	using CommandParameters;
+	using Harmony.CommandParameters;
+	using Harmony.Events;
+	using Harmony.Responses;
 
 	using Newtonsoft.Json;
 
@@ -34,7 +32,7 @@ namespace Harmony.WebSockets {
 		public HubConnection(DeviceID messageID) => this.MessageID = messageID;
 
 		/// <summary>
-		///		Event raised when a message has been received on the WebSocket
+		///     Event raised when a message has been received on the WebSocket
 		/// </summary>
 		public event EventHandler<StringResponseEventArgs> OnMessageReceived;
 
@@ -50,10 +48,27 @@ namespace Harmony.WebSockets {
 		}
 
 		/// <summary>
-		///     Handles the websocket connection
+		///     Sends a command with no parameters
 		/// </summary>
-		/// <returns>When the websocket closes</returns>
-		public override async Task HandleWebSocket() {
+		/// <param name="commandName">The name of the command to execute</param>
+		/// <returns>When the command has been sent</returns>
+		public Task<string> SendCommand(string commandName) => this.SendCommand(commandName, null);
+
+		/// <summary>
+		///     Sends a command with the specified parameters
+		/// </summary>
+		/// <param name="commandName">The name of the command to execute</param>
+		/// <param name="parameters">The parameters to execute the command with</param>
+		/// <returns>The ID of the command when the it has been sent</returns>
+		public Task<string> SendCommand(string commandName, CommandParams parameters) {
+			Command Command = new Command(commandName, parameters, this.MessageID.Next());
+			return this.SendCommand(Command);
+		}
+
+		/// <summary>
+		///     Handles listening on the websocket connection
+		/// </summary>
+		public override async void StartListening() {
 			try {
 				// main listening loop
 				while (!this.WebSocket.CloseStatus.HasValue) {
@@ -73,34 +88,18 @@ namespace Harmony.WebSockets {
 		}
 
 		/// <summary>
-		///     Sends a command with no parameters
-		/// </summary>
-		/// <param name="commandName">The name of the command to execute</param>
-		/// <returns>When the command has been sent</returns>
-		public async Task SendCommand(string commandName) => await this.SendCommand(commandName, null);
-
-		/// <summary>
-		///     Sends a command with the specified parameters
-		/// </summary>
-		/// <param name="commandName">The name of the command to execute</param>
-		/// <param name="parameters">The parameters to execute the command with</param>
-		/// <returns>When the command has been sent</returns>
-		public async Task SendCommand(string commandName, CommandParams parameters) {
-			Command Command = new Command(commandName, parameters, this.MessageID.Next());
-			await this.SendCommand(Command);
-		}
-
-		/// <summary>
 		///     Sends a command over the WebSocket
 		/// </summary>
 		/// <param name="command">The command to send</param>
-		/// <returns>When the command has been sent</returns>
-		private async Task SendCommand(Command command) {
+		/// <returns>The ID of the command when the it has been sent</returns>
+		private async Task<string> SendCommand(Command command) {
 			string CommandJson = JsonConvert.SerializeObject(command);
 
 			// need to surround in another object, using a string is much easier than using JSON.NET
 			// nevertheless, TODO make this less weird
 			await this.SendMessage("{\"hbus\": " + CommandJson + "}");
+
+			return command.ID;
 		}
 	}
 }

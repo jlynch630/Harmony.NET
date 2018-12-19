@@ -55,12 +55,14 @@ namespace Harmony {
 		}
 
 		/// <summary>
-		///		Gets a <see cref="DeviceID"/> using this device's parameters and a random UUID
+		///     Gets a <see cref="DeviceID" /> using this device's parameters and a random UUID
 		/// </summary>
-		/// <returns>A <see cref="DeviceID"/> with this device's information</returns>
-		public static DeviceID GetDeviceDefault() {
-			return new DeviceID(Guid.NewGuid().ToString("N"), Environment.OSVersion.Platform.ToString(), Environment.OSVersion.ToString().Replace(" ", ""));
-		}
+		/// <returns>A <see cref="DeviceID" /> with this device's information</returns>
+		public static DeviceID GetDeviceDefault() =>
+			new DeviceID(
+				Guid.NewGuid().ToString("N"),
+				Environment.OSVersion.Platform.ToString(),
+				Environment.OSVersion.ToString().Replace(" ", string.Empty));
 
 		/// <summary>
 		///     Gets the string identifier for the next message sent

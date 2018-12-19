@@ -5,15 +5,18 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-using System;
-using System.Net.WebSockets;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using Harmony.Responses;
-using Newtonsoft.Json;
-
 namespace Harmony.WebSockets {
+	using System;
+	using System.Net.WebSockets;
+	using System.Text;
+	using System.Threading;
+	using System.Threading.Tasks;
+
+	using Harmony.Responses;
+
+	using Newtonsoft.Json;
+	using Newtonsoft.Json.Linq;
+
 	/// <summary>
 	///     A handler for websocket connections
 	/// </summary>
@@ -26,12 +29,27 @@ namespace Harmony.WebSockets {
 		/// <summary>
 		///     Initializes a new instance of the <see cref="WebSocketConnection" /> class.
 		/// </summary>
-		protected WebSocketConnection() => WebSocket = new ClientWebSocket();
+		protected WebSocketConnection() => this.WebSocket = new ClientWebSocket();
 
 		/// <summary>
 		///     Gets the websocket to communicate over
 		/// </summary>
 		protected ClientWebSocket WebSocket { get; }
+
+		/// <summary>
+		///     Connects to the WebSocket
+		/// </summary>
+		/// <param name="url">The url to connect to</param>
+		/// <returns>When the WebSocket has connected</returns>
+		public async Task Connect(string url) =>
+			await this.WebSocket.ConnectAsync(new Uri(url), CancellationToken.None);
+
+		/// <summary>
+		///     Disconnects from the WebSocket
+		/// </summary>
+		/// <returns>When the WebSocket has disconnected</returns>
+		public async Task Disconnect() =>
+			await this.WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closed", CancellationToken.None);
 
 		/// <inheritdoc />
 		/// <summary>
@@ -39,31 +57,29 @@ namespace Harmony.WebSockets {
 		/// </summary>
 		public async void Dispose() {
 			// close then dispose the websocket
-			await WebSocket.CloseAsync(WebSocketCloseStatus.Empty, "", CancellationToken.None);
-			WebSocket.Dispose();
+			await this.WebSocket.CloseAsync(WebSocketCloseStatus.Empty, string.Empty, CancellationToken.None);
+			this.WebSocket.Dispose();
 		}
-
-
-		/// <summary>
-		///     Connects to the WebSocket
-		/// </summary>
-		/// <param name="url">The url to connect to</param>
-		/// <returns>When the WebSocket has connected</returns>
-		public async Task Connect(string url)
-			=> await WebSocket.ConnectAsync(new Uri(url), CancellationToken.None);
-
-		/// <summary>
-		///     Handles a new websocket connection
-		/// </summary>
-		/// <returns>When the websocket connection has been closed</returns>
-		public abstract Task HandleWebSocket();
 
 		/// <summary>
 		///     Waits for a message with serialized response data from the WebSocket
 		/// </summary>
 		/// <returns>The <see cref="StringResponse" /></returns>
-		public async Task<StringResponse> ReceiveHarmonyMessage() =>
-			JsonConvert.DeserializeObject<StringResponse>(await ReceiveMessage());
+		public async Task<StringResponse> ReceiveHarmonyMessage() {
+			// harmony sends two kinds of messages: command responses and incoming messages
+			// we want to generalize them into one Response<T>
+			// incoming messages have the `type` property, and command the `cmd` one.
+			string Message = await this.ReceiveMessage();
+			JObject MessageObject = JObject.Parse(Message);
+			return MessageObject.ContainsKey("cmd")
+				       ? MessageObject.ToObject<StringResponse>()
+				       : MessageObject.ToObject<IncomingMessage>().ToStringResponse();
+		}
+
+		/// <summary>
+		///     Handles listening on a websocket connection
+		/// </summary>
+		public abstract void StartListening();
 
 		/// <summary>
 		///     Receives a message from the websocket connection as a UTF8 string
@@ -76,7 +92,7 @@ namespace Harmony.WebSockets {
 			// receive message into a buffer until the "message finished" flag is set
 			WebSocketReceiveResult Result = null;
 			while (Result == null || !Result.EndOfMessage) {
-				Result = await WebSocket.ReceiveAsync(new ArraySegment<byte>(Buffer), CancellationToken.None);
+				Result = await this.WebSocket.ReceiveAsync(new ArraySegment<byte>(Buffer), CancellationToken.None);
 				ReceivedMessage += Encoding.UTF8.GetString(Buffer, 0, Result.Count);
 			}
 
@@ -89,7 +105,7 @@ namespace Harmony.WebSockets {
 		/// <typeparam name="T">The type of the payload data being sent over the websocket</typeparam>
 		/// <param name="data">The object to serialize and send over the websocket</param>
 		/// <returns>When the message has been sent</returns>
-		protected Task SendJsonMessage<T>(T data) => SendMessage(JsonConvert.SerializeObject(data));
+		protected Task SendJsonMessage<T>(T data) => this.SendMessage(JsonConvert.SerializeObject(data));
 
 		/// <summary>
 		///     Sends a string message over the websocket using UTF-8 encoding
@@ -100,22 +116,18 @@ namespace Harmony.WebSockets {
 			byte[] MessageBytes = Encoding.UTF8.GetBytes(message);
 
 			// avoid sending multiple messages at once
-			await SendSemaphore.WaitAsync();
+			await this.SendSemaphore.WaitAsync();
 			try {
-				// TODO: Buffer this if it's too long necessary
-				await WebSocket.SendAsync(new ArraySegment<byte>(MessageBytes), WebSocketMessageType.Text, true,
+				// TODO: Buffer this if it's too long
+				await this.WebSocket.SendAsync(
+					new ArraySegment<byte>(MessageBytes),
+					WebSocketMessageType.Text,
+					true,
 					CancellationToken.None);
 			}
 			finally {
-				SendSemaphore.Release();
+				this.SendSemaphore.Release();
 			}
 		}
-
-		/// <summary>
-		///     Disconnects from the WebSocket
-		/// </summary>
-		/// <returns>When the WebSocket has disconnected</returns>
-		public async Task Disconnect() =>
-			await WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closed", CancellationToken.None);
 	}
 }

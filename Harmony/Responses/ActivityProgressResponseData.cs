@@ -5,7 +5,7 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-namespace Harmony {
+namespace Harmony.Responses {
 	using Newtonsoft.Json;
 
 	/// <summary>

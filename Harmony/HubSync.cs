@@ -485,6 +485,12 @@ namespace Harmony {
 	/// </summary>
 	public class Device : Controllable {
 		/// <summary>
+		///     Gets or sets the date the device was added to the hub
+		/// </summary>
+		[JsonProperty("deviceAddedDate")]
+		public DateTime AddedDate { get; set; }
+
+		/// <summary>
 		///     Gets or sets the Bluetooth MAC address of the device if Bluetooth is the primary communication channel
 		/// </summary>
 		[JsonProperty("BTAddress")]
@@ -514,12 +520,6 @@ namespace Harmony {
 		/// </summary>
 		[JsonProperty("ControlPort")]
 		public int ControlPort { get; set; }
-
-		/// <summary>
-		///     Gets or sets the date the device was added to the hub
-		/// </summary>
-		[JsonProperty("deviceAddedDate")]
-		public DateTime AddedDate { get; set; }
 
 		/// <summary>
 		///     Gets or sets the URI used along with Content.ContentDeviceHost to learn information about favorite channels on this

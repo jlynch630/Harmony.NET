@@ -16,14 +16,9 @@ namespace Harmony.DeviceWrappers {
 			: base(controllable) { }
 
 		/// <summary>
-		///     The play function
+		///     The eject function
 		/// </summary>
-		public Function Play => this.Controllable.GetFunctionByName("Play");
-
-		/// <summary>
-		///     The pause function
-		/// </summary>
-		public Function Pause => this.Controllable.GetFunctionByName("Pause");
+		public Function Eject => this.Controllable.GetFunctionByName("Eject");
 
 		/// <summary>
 		///     The fast forward function
@@ -31,14 +26,24 @@ namespace Harmony.DeviceWrappers {
 		public Function FastForward => this.Controllable.GetFunctionByName("FastForward");
 
 		/// <summary>
+		///     The pause function
+		/// </summary>
+		public Function Pause => this.Controllable.GetFunctionByName("Pause");
+
+		/// <summary>
+		///     The play function
+		/// </summary>
+		public Function Play => this.Controllable.GetFunctionByName("Play");
+
+		/// <summary>
 		///     The rewind function
 		/// </summary>
 		public Function Rewind => this.Controllable.GetFunctionByName("Rewind");
 
 		/// <summary>
-		///     The eject function
+		///     The skip backward function
 		/// </summary>
-		public Function Eject => this.Controllable.GetFunctionByName("Eject");
+		public Function SkipBackward => this.Controllable.GetFunctionByName("SkipBackward");
 
 		/// <summary>
 		///     The skip forward function
@@ -46,23 +51,18 @@ namespace Harmony.DeviceWrappers {
 		public Function SkipForward => this.Controllable.GetFunctionByName("SkipForward");
 
 		/// <summary>
-		///		The skip backward function
+		///     The stop function
 		/// </summary>
-		public Function SkipBackward => this.Controllable.GetFunctionByName("SkipBackward");
+		public Function Stop => this.Controllable.GetFunctionByName("Stop");
+
+		/// <summary>
+		///     The volume down function
+		/// </summary>
+		public Function VolumeDown => this.Controllable.GetFunctionByName("VolumeDown");
 
 		/// <summary>
 		///     The volume up function
 		/// </summary>
 		public Function VolumeUp => this.Controllable.GetFunctionByName("VolumeUp");
-
-		/// <summary>
-		///		The volume down function
-		/// </summary>
-		public Function VolumeDown => this.Controllable.GetFunctionByName("VolumeDown");
-
-		/// <summary>
-		///     The stop function
-		/// </summary>
-		public Function Stop => this.Controllable.GetFunctionByName("Stop");
 	}
 }

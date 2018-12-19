@@ -64,5 +64,19 @@ namespace Harmony.Responses {
 		/// <typeparam name="T">The type to deserialize into</typeparam>
 		/// <returns>The deserialized object</returns>
 		public T DeserializeAs<T>() => JsonConvert.DeserializeObject<T>(this.Data);
+
+		/// <summary>
+		///     Deserializes this response into a <see cref="Response{T}" /> with the specified data type
+		/// </summary>
+		/// <typeparam name="T">The type to deserialize this response's data into</typeparam>
+		/// <returns>A <see cref="Response{T}" /> with this data in it</returns>
+		public Response<T> DeserializeResponseAs<T>() =>
+			new Response<T> {
+				                Data = this.DeserializeAs<T>(),
+				                Code = this.Code,
+				                Command = this.Command,
+				                ID = this.ID,
+				                Message = this.Message
+			                };
 	}
 }

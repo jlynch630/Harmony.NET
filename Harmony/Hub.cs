@@ -5,19 +5,19 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-using Harmony.Events;
-using Harmony.Responses;
-using Harmony.WebSockets;
-
 namespace Harmony {
 	using System;
 	using System.Collections.Generic;
 	using System.Diagnostics.CodeAnalysis;
 	using System.Linq;
 	using System.Net;
+	using System.Threading;
 	using System.Threading.Tasks;
 
 	using Harmony.CommandParameters;
+	using Harmony.Events;
+	using Harmony.Responses;
+	using Harmony.WebSockets;
 
 	using Newtonsoft.Json;
 
@@ -60,29 +60,29 @@ namespace Harmony {
 		private Hub() { }
 
 		/// <summary>
-		///		Event raised when the Hub has finished changing channels
-		/// </summary>
-		public event EventHandler<SuccessEventArgs> OnChannelChanged;
-
-		/// <summary>
-		///		Event raised when a state digest is received
-		/// </summary>
-		public event EventHandler<HarmonyEventArgs<StateDigest>> OnStateDigestReceived;
-
-		/// <summary>
-		///		Event raised when an activity has finished starting
-		/// </summary>
-		public event EventHandler<HarmonyEventArgs<Activity>> OnActivityStarted;
-
-		/// <summary>
-		///		Event raised when an activity has progressed in starting or stopping
+		///     Event raised when an activity has progressed in starting or stopping
 		/// </summary>
 		public event EventHandler<ActivityProgressEventArgs> OnActivityProgress;
 
 		/// <summary>
-		///		Event raised when a Hub has been synchronized
+		///     Event raised when an activity has finished starting or stopping
+		/// </summary>
+		public event EventHandler<HarmonyEventArgs<Activity>> OnActivityRan;
+
+		/// <summary>
+		///     Event raised when the Hub has finished changing channels
+		/// </summary>
+		public event EventHandler<SuccessEventArgs> OnChannelChanged;
+
+		/// <summary>
+		///     Event raised when a Hub has been synchronized
 		/// </summary>
 		public event EventHandler<HarmonyEventArgs<HubSync>> OnHubSynchronized;
+
+		/// <summary>
+		///     Event raised when a state digest is received
+		/// </summary>
+		public event EventHandler<HarmonyEventArgs<StateDigest>> OnStateDigestReceived;
 
 		/// <summary>
 		///     Gets the list of synced activities on this hub
@@ -101,15 +101,15 @@ namespace Harmony {
 		public HubInfo Info { get; private set; }
 
 		/// <summary>
-		///		Gets the last known state of the Hub
-		/// </summary>
-		public StateDigest State { get; private set; }
-
-		/// <summary>
 		///     Gets or sets the millisecond difference between repeated commands. For example, setting this to 200 would mean
 		///     sequential commands executed with a default delay of 400ms would have a 600ms delay, then 200ms, then 600ms, etc.
 		/// </summary>
 		public int RepeatedCommandAdjustment { get; set; } = 200;
+
+		/// <summary>
+		///     Gets the last known state of the Hub
+		/// </summary>
+		public StateDigest State { get; private set; }
 
 		// We can use a private setter for these because the JsonProperty attribute will make it work anyway
 
@@ -143,9 +143,32 @@ namespace Harmony {
 		/// </summary>
 		/// <param name="channelNumber">The number of the channel to tune to</param>
 		/// <returns>When the channel has been changed</returns>
-		public async Task ChangeChannel(string channelNumber) {
+		public Task ChangeChannel(string channelNumber) => this.ChangeChannel(channelNumber, CancellationToken.None);
+
+		/// <summary>
+		///     Tunes to a channel on the current activity
+		/// </summary>
+		/// <param name="channel">The channel to tune to</param>
+		/// <param name="cancellationToken">A token to use to cancel waiting for a successful channel change</param>
+		/// <returns>When the channel has been changed</returns>
+		public Task ChangeChannel(Channel channel, CancellationToken cancellationToken) =>
+			this.ChangeChannel(channel.Number, cancellationToken);
+
+		/// <summary>
+		///     Tunes to a channel on the current activity
+		/// </summary>
+		/// <param name="channelNumber">The number of the channel to tune to</param>
+		/// <param name="cancellationToken">A token to use to cancel waiting for a successful channel change</param>
+		/// <returns>When the channel has been changed</returns>
+		public async Task ChangeChannel(string channelNumber, CancellationToken cancellationToken) {
 			ChangeChannelParams Params = new ChangeChannelParams(channelNumber, this.GetTimestamp());
-			await this.Connection.SendCommand("harmony.engine?changeChannel", Params);
+			string CommandId = await this.Connection.SendCommand("harmony.engine?changeChannel", Params);
+
+			EventWaiter<string, SuccessEventArgs> Waiter =
+				new EventWaiter<string, SuccessEventArgs>(CommandId, cancellationToken);
+			this.OnChannelChanged += Waiter.WaitHandler;
+			await Waiter.CompletionTask;
+			this.OnChannelChanged -= Waiter.WaitHandler;
 		}
 
 		/// <summary>
@@ -155,8 +178,12 @@ namespace Harmony {
 		/// <returns>When the WebSocket has connected</returns>
 		public async Task ConnectAsync(DeviceID deviceID) {
 			this.Connection = new HubConnection(deviceID);
+			this.Connection.OnMessageReceived += this.OnHarmonyMessageReceived;
 			await this.Connection.Connect(this.Info.IP, this.Info.RemoteId);
 			this.ConnectedAt = DateTime.Now;
+
+			// start listening for messages
+			this.Connection.StartListening();
 		}
 
 		/// <summary>
@@ -165,6 +192,12 @@ namespace Harmony {
 		/// <returns>When the WebSocket has disconnected</returns>
 		public Task Disconnect() => this.Connection.Disconnect();
 
+		/// <inheritdoc />
+		/// <summary>
+		///     Disposes resources used by this <see cref="Hub" />
+		/// </summary>
+		public void Dispose() => this.Connection.Dispose();
+
 		/// <summary>
 		///     Ends the currently running activity
 		/// </summary>
@@ -172,7 +205,19 @@ namespace Harmony {
 		public async Task EndActivity() =>
 			await this.RunActivity(
 				this.GetRunningActivity() ?? throw new HarmonyException("There is no running activity to end"),
-				false);
+				false,
+				CancellationToken.None);
+
+		/// <summary>
+		///     Ends the currently running activity
+		/// </summary>
+		/// <param name="cancellationToken">A token to use to cancel waiting for the activity to completely stop</param>
+		/// <returns>When the activity has ended</returns>
+		public async Task EndActivity(CancellationToken cancellationToken) =>
+			await this.RunActivity(
+				this.GetRunningActivity() ?? throw new HarmonyException("There is no running activity to end"),
+				false,
+				cancellationToken);
 
 		/// <summary>
 		///     Executes a custom sequence
@@ -255,16 +300,6 @@ namespace Harmony {
 		public string GetRunningActivityId() => this.State.ActivityId;
 
 		/// <summary>
-		///     Updates the current state of the Hub (running activity, activity status, etc.)
-		/// </summary>
-		/// <returns>When a request to update the Hub state has been sent</returns>
-		public async Task UpdateStateAsync() {
-			await this.Connection.SendCommand(
-				                                 "connect.statedigest?get",
-				                                 new FormatParams());
-		}
-
-		/// <summary>
 		///     Gets the user's location, favorite channels, and id from the server
 		/// </summary>
 		/// <returns>The retrieved <see cref="User" /></returns>
@@ -274,6 +309,18 @@ namespace Harmony {
 				Uri.EscapeDataString(this.Sync.Content.HouseholdUserProfileUri));
 
 			return await Hub.GetJSONData<User>(RequestUrl);
+		}
+
+		/// <summary>
+		///     Holds a function down for a certain amount of time
+		/// </summary>
+		/// <param name="function">The function to hold down</param>
+		/// <param name="milliseconds">The millisecond time to hold the function for</param>
+		/// <returns>After <paramref name="milliseconds" /> milliseconds</returns>
+		public async Task HoldFor(Function function, int milliseconds) {
+			this.StartHolding(function);
+			await Task.Delay(milliseconds);
+			this.StopHolding();
 		}
 
 		/// <summary>
@@ -288,7 +335,8 @@ namespace Harmony {
 		///     Minimum delay of 400ms
 		/// </summary>
 		/// <param name="delay">
-		///     The delay between button presses. This will be altered by +/- 200 milliseconds every command, otherwise Harmony won't accept the commands
+		///     The delay between button presses. This will be altered by +/- 200 milliseconds every command, otherwise Harmony
+		///     won't accept the commands
 		/// </param>
 		/// <param name="functions">The functions to execute</param>
 		/// <returns>When all functions have executed</returns>
@@ -332,7 +380,8 @@ namespace Harmony {
 		/// <param name="action">The action to execute to fix the activity</param>
 		/// <returns>When the action has been sent</returns>
 		public async Task SendFixActivityAction(FixActivityAction action) {
-			await Connection.SendCommand(
+			// TODO: test if this returns a command
+			await this.Connection.SendCommand(
 				"vnd.logitech.harmony/vnd.logitech.harmony.engine?helpSync",
 				action.GetParameters(this.GetTimestamp()));
 		}
@@ -342,13 +391,23 @@ namespace Harmony {
 		/// </summary>
 		/// <param name="activity">The activity to start</param>
 		/// <returns>When the activity has been completely started</returns>
-		public Task StartActivity(Activity activity) => this.RunActivity(activity, true);
+		public Task StartActivity(Activity activity) => this.RunActivity(activity, true, CancellationToken.None);
 
 		/// <summary>
-		///     Starts holding down the given function until <see cref="StopHolding"/> is called
+		///     Starts an activity
+		/// </summary>
+		/// <param name="activity">The activity to start</param>
+		/// <param name="token">A token to use to cancel waiting for the activity to finish starting</param>
+		/// <returns>When the activity has been completely started</returns>
+		public Task StartActivity(Activity activity, CancellationToken token) =>
+			this.RunActivity(activity, true, token);
+
+		/// <summary>
+		///     Starts holding down the given function until <see cref="StopHolding" /> is called
 		/// </summary>
 		/// <param name="function">The function to hold down</param>
 		public void StartHolding(Function function) {
+			if (this.HeldDownFunction != null) throw new HarmonyException("Already holding a function down");
 			this.HeldDownFunction = function;
 			this.HoldFunction();
 		}
@@ -363,14 +422,23 @@ namespace Harmony {
 		/// <summary>
 		///     Syncs the hub's devices, activities, etc. asynchronously
 		/// </summary>
-		/// <returns>When the hub has synced</returns>
-		public async Task SyncConfigurationAsync() {
-			await this.Connection.SendCommand<HubSync>("vnd.logitech.harmony/vnd.logitech.harmony.engine?config");
+		/// <returns>The configuration data</returns>
+		public Task<HubSync> SyncConfigurationAsync() => this.SyncConfigurationAsync(CancellationToken.None);
 
-			// anything between 200 and 300 indicates success
-			this.Sync = Response.Code >= 200 && Response.Code < 300
-				            ? Response.Data
-				            : throw new HarmonyWebSocketException(Response.Code, Response.Message);
+		/// <summary>
+		///     Syncs the hub's devices, activities, etc. asynchronously
+		/// </summary>
+		/// <param name="cancellationToken">A token to use to cancel waiting for the configuration to be synchronized</param>
+		/// <returns>The configuration data</returns>
+		public async Task<HubSync> SyncConfigurationAsync(CancellationToken cancellationToken) {
+			string CommandId =
+				await this.Connection.SendCommand("vnd.logitech.harmony/vnd.logitech.harmony.engine?config");
+
+			EventWaiter<HubSync> Waiter = new EventWaiter<HubSync>(CommandId, cancellationToken);
+			this.OnHubSynchronized += Waiter.WaitHandler;
+			HubSync Result = await Waiter.CompletionTask;
+			this.OnHubSynchronized -= Waiter.WaitHandler;
+			return Result;
 		}
 
 		/// <summary>
@@ -378,6 +446,27 @@ namespace Harmony {
 		/// </summary>
 		/// <returns>The serialized JSON <see cref="Hub" /></returns>
 		public string ToJson() => JsonConvert.SerializeObject(this);
+
+		/// <summary>
+		///     Updates the current state of the Hub (running activity, activity status, etc.)
+		/// </summary>
+		/// <returns>The Hub's state</returns>
+		public Task<StateDigest> UpdateStateAsync() => this.UpdateStateAsync(CancellationToken.None);
+
+		/// <summary>
+		///     Updates the current state of the Hub (running activity, activity status, etc.)
+		/// </summary>
+		/// <param name="cancellationToken">A token to use to cancel waiting for the state to update</param>
+		/// <returns>The Hub's state</returns>
+		public async Task<StateDigest> UpdateStateAsync(CancellationToken cancellationToken) {
+			string CommandId = await this.Connection.SendCommand("connect.statedigest?get", new FormatParams());
+
+			EventWaiter<StateDigest> Waiter = new EventWaiter<StateDigest>(CommandId, cancellationToken);
+			this.OnStateDigestReceived += Waiter.WaitHandler;
+			StateDigest Result = await Waiter.CompletionTask;
+			this.OnStateDigestReceived -= Waiter.WaitHandler;
+			return Result;
+		}
 
 		/// <summary>
 		///     Gets JSON data from a url
@@ -443,19 +532,75 @@ namespace Harmony {
 		}
 
 		/// <summary>
+		///     Event handler for when a Harmony message is received from this <see cref="Connection" />
+		/// </summary>
+		/// <param name="sender">The <see cref="HubConnection" /> that raised this event</param>
+		/// <param name="e">The event arguments containing the Harmony message</param>
+		private void OnHarmonyMessageReceived(object sender, StringResponseEventArgs e) {
+			//// TODO: cyclomatic complexity is 13, make cleaner
+			//// TODO: consolidate command strings into one class
+			Console.WriteLine("Received message: {0} {1}", e.Response.Command, e.Response.Code);
+			switch (e.Response.Command) {
+				case "harmony.engine?changeChannel":
+					this.OnChannelChanged?.Invoke(this, new SuccessEventArgs(e.Response));
+					break;
+				case "harmony.engine?helpdiscretes" when e.Response.Code != 100:
+				case "harmony.engine?startActivityFinished":
+					ActivityStartedResponseData Data = e.Response.DeserializeAs<ActivityStartedResponseData>();
+					if (Data.ActivityId == null) break;
+
+					Activity Started = this.GetActivityById(Data.ActivityId);
+					Response<Activity> ActivityResponse = new Response<Activity> {
+						                                                             Code = e.Response.Code,
+						                                                             Data = Started,
+						                                                             Command = e.Response.Command,
+						                                                             ID = e.Response.ID,
+						                                                             Message = e.Response.Message
+					                                                             };
+					this.OnActivityRan?.Invoke(this, new HarmonyEventArgs<Activity>(ActivityResponse));
+					break;
+				case "harmony.engine?startActivity":
+				case "harmony.engine?helpdiscretes" when e.Response.Code == 100:
+					// we don't care about home automation state right now, ignore 200.2
+					// TODO: care about it
+					if (e.Response.Code == 200.2) break;
+					ActivityProgressResponseData
+						ProgressData = e.Response.DeserializeAs<ActivityProgressResponseData>();
+
+					this.OnActivityProgress?.Invoke(
+						this,
+						new ActivityProgressEventArgs(
+							this.GetRunningActivity(), // running activity is switched immediately
+							ProgressData.Done / (double)ProgressData.Total));
+					break;
+				case "vnd.logitech.harmony/vnd.logitech.harmony.engine?config":
+					HarmonyEventArgs<HubSync> SyncEventArgs = e.To<HubSync>();
+					this.Sync = SyncEventArgs.Response.Data;
+					this.OnHubSynchronized?.Invoke(this, SyncEventArgs);
+					break;
+				case "connect.statedigest?get":
+				case "connect.statedigest?notify":
+					HarmonyEventArgs<StateDigest> StateEventArgs = e.To<StateDigest>();
+					this.State = StateEventArgs.Response.Data;
+					this.OnStateDigestReceived?.Invoke(this, StateEventArgs);
+					break;
+			}
+		}
+
+		/// <summary>
 		///     Starts or stops an activity
 		/// </summary>
 		/// <param name="activity">The activity to run</param>
 		/// <param name="start">True to start the activity, false to end it</param>
+		/// <param name="cancellationToken">A token to use to cancel waiting for the activity to start</param>
 		/// <returns>When the activity has completely started or stopped</returns>
-		private async Task RunActivity(Activity activity, bool start) {
+		private async Task RunActivity(Activity activity, bool start, CancellationToken cancellationToken) {
 			if (activity == null)
 				throw new HarmonyException("Cannot run a null activity");
 
 			RunActivityParams Parameters = new RunActivityParams(activity.Id, this.GetTimestamp().ToString(), start);
 
-			// run without expecting a response. We'll collect those manually
-			await this.Connection.SendCommand("harmony.activityengine?runactivity", Parameters);
+			string MessageId = await this.Connection.SendCommand("harmony.activityengine?runactivity", Parameters);
 
 			// we will get four things here:
 			/*
@@ -466,29 +611,12 @@ namespace Harmony {
 			 *
 			 * We don't really care about the first two, but the last two will allow us to notify progress and completion
 			 */
-			StringResponse Message;
 
-			// while the activity hasn't yet finished starting
-			while ((Message = await this.Connection.ReceiveMessage()).Command
-			       != "harmony.engine?startActivityFinished") {
-				// both of these message commands indicate progress
-				if (Message.Command != "harmony.engine?startActivity"
-				    && Message.Command != "harmony.engine?helpdiscretes") continue;
-				if (Message.Code == 200) break; // 200 indicates completion
-				if (Message.Code != 100) continue; // 100 progress
-
-				ActivityProgressResponseData ProgressData = Message.DeserializeAs<ActivityProgressResponseData>();
-				double Progress = (double)ProgressData.Done / ProgressData.Total;
-
-				// invoke event handler
-				this.ActivityProgress?.Invoke(this, new ActivityProgressEventArgs(activity, Progress));
-			}
+			// let events handle progress, and just return after it's finished
+			EventWaiter<Activity> Waiter = new EventWaiter<Activity>(MessageId, cancellationToken);
+			this.OnActivityRan += Waiter.WaitHandler;
+			await Waiter.CompletionTask;
+			this.OnActivityRan -= Waiter.WaitHandler;
 		}
-
-		/// <inheritdoc />
-		/// <summary>
-		/// 	Disposes resources used by this <see cref="Hub" />
-		/// </summary>
-		public void Dispose() => this.Connection.Dispose();
 	}
 }

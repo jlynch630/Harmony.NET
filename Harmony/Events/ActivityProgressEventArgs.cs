@@ -5,9 +5,9 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-using System;
-
 namespace Harmony.Events {
+	using System;
+
 	/// <inheritdoc />
 	/// <summary>
 	///     Event arguments for activity start or stop progress

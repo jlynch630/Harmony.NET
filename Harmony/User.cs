@@ -48,7 +48,7 @@ namespace Harmony {
 	/// </summary>
 	public class Preferences : Dictionary<string, ProviderList> {
 		/// <summary>
-		///		Gets all TV providers for the given device
+		///     Gets all TV providers for the given device
 		/// </summary>
 		/// <param name="device">The device to get the providers </param>
 		/// <returns>The list of providers for that device</returns>
@@ -61,14 +61,14 @@ namespace Harmony {
 	/// </summary>
 	public class ProviderList : Dictionary<string, ProviderFavorites> {
 		/// <summary>
-		///		Gets the provider id for the default (first) TV provider
-		/// </summary>
-		public string DefaultProviderId => this.Keys.First();
-
-		/// <summary>
-		///		Gets the favorite channels for the default (first) TV provider
+		///     Gets the favorite channels for the default (first) TV provider
 		/// </summary>
 		public ProviderFavorites DefaultFavoriteChannels => this.Values.First();
+
+		/// <summary>
+		///     Gets the provider id for the default (first) TV provider
+		/// </summary>
+		public string DefaultProviderId => this.Keys.First();
 	}
 
 	/// <summary>
@@ -117,7 +117,6 @@ namespace Harmony {
 		public string PostalCode { get; set; }
 	}
 }
-
 
 /*
 	Find: "^\t\tpublic .*? ([a-z_]*) "

@@ -1,25 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using Harmony.Responses;
+﻿// -----------------------------------------------------------------------
+// <copyright file="HarmonyEventArgs.cs" company="John Lynch">
+//   This file is licensed under the MIT license.
+//   Copyright (c) 2018 John Lynch
+// </copyright>
+// -----------------------------------------------------------------------
 
 namespace Harmony.Events {
+	using System;
+
+	using Harmony.Responses;
+
 	/// <summary>
-	///		Event arguments for a Harmony WebSocket message
+	///     Event arguments for a Harmony WebSocket message
 	/// </summary>
 	/// <typeparam name="TData">The type of data received in this message</typeparam>
 	public class HarmonyEventArgs<TData> : EventArgs {
 		/// <summary>
-		///		Initializes a new instance of the <see cref="HarmonyEventArgs{TData}"/> class.
+		///     Initializes a new instance of the <see cref="HarmonyEventArgs{TData}" /> class.
 		/// </summary>
-		/// <param name="data">The data received in the message</param>
-		public HarmonyEventArgs(TData data) {
-			this.Data = data;
-		}
+		/// <param name="response">The response data received in the message</param>
+		public HarmonyEventArgs(Response<TData> response) => this.Response = response;
 
 		/// <summary>
-		///		Gets the data received in the message
+		///     Gets the response data received in the message
 		/// </summary>
-		public TData Data { get; }
+		public Response<TData> Response { get; }
 	}
 }
