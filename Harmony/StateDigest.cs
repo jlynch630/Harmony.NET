@@ -124,7 +124,7 @@ namespace Harmony {
 		public string TimezoneOffset { get; set; }
 
 		[JsonProperty("updates")]
-		public Dictionary<string, string> Updates { get; set; }
+		public List<Dictionary<string, string>> Updates { get; set; }
 
 		[JsonProperty("wifiStatus")]
 		public int WifiStatus { get; set; }
