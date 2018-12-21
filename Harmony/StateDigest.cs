@@ -8,6 +8,8 @@
 namespace Harmony {
 	using System.Collections.Generic;
 
+	using Harmony.JSON;
+
 	using Newtonsoft.Json;
 
 	/// <summary>
@@ -124,6 +126,7 @@ namespace Harmony {
 		public string TimezoneOffset { get; set; }
 
 		[JsonProperty("updates")]
+		[JsonConverter(typeof(SingleOrArrayConverter<Dictionary<string, string>>))]
 		public List<Dictionary<string, string>> Updates { get; set; }
 
 		[JsonProperty("wifiStatus")]
