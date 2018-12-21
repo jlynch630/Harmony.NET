@@ -16,6 +16,8 @@ namespace Harmony.WebSockets {
 
 	using Newtonsoft.Json;
 	using Newtonsoft.Json.Linq;
+	
+	using ClientWebSocket = System.Net.WebSockets.Managed.ClientWebSocket;
 
 	/// <summary>
 	///     A handler for websocket connections
@@ -29,7 +31,7 @@ namespace Harmony.WebSockets {
 		/// <summary>
 		///     Initializes a new instance of the <see cref="WebSocketConnection" /> class.
 		/// </summary>
-		protected WebSocketConnection() => this.WebSocket = new ClientWebSocket();
+		protected WebSocketConnection() => this.WebSocket = new ClientWebSocket();////new ClientWebSocket();
 
 		/// <summary>
 		///     Gets the websocket to communicate over
