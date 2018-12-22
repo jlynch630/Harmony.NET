@@ -8,3 +8,5 @@ Harmony/bin
 Harmony/*.nupkg
 /Harmony/Harmony.xml
 /HarmonyApp
+/Net461Test
+/packages

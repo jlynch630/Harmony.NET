@@ -25,14 +25,14 @@ namespace Harmony {
 		private const int BroadcastPort = 5224;
 
 		/// <summary>
-		///     The port to listen for connections on
-		/// </summary>
-		private const int ListenPort = 5446;
-
-		/// <summary>
 		///     A list of the ids of Hubs that have already been found
 		/// </summary>
 		private readonly List<string> FoundHubIDs = new List<string>();
+
+		/// <summary>
+		///     The port to listen for connections on
+		/// </summary>
+		private readonly int ListenPort;
 
 		/// <summary>
 		///     The source of the token used to cancel broadcast packets
@@ -50,6 +50,12 @@ namespace Harmony {
 		private Thread ListenThread;
 
 		/// <summary>
+		///     Initializes a new instance of the <see cref="DiscoveryService" /> class.
+		/// </summary>
+		/// <param name="listenPort">The port to listen for connections on, defaults to 5446</param>
+		public DiscoveryService(int listenPort = 5446) => this.ListenPort = listenPort;
+
+		/// <summary>
 		///     Event called when a hub was found
 		/// </summary>
 		public event EventHandler<HubFoundEventArgs> HubFound;
@@ -62,7 +68,8 @@ namespace Harmony {
 		/// <summary>
 		///     Broadcasts availability and waits for clients to identify
 		/// </summary>
-		public void StartDiscovery() {
+		public void StartDiscovery()
+		{
 			this.BroadcastCancellationTokenSource = new CancellationTokenSource();
 			this.BroadcastContinually(this.BroadcastCancellationTokenSource.Token);
 			this.StartListening();
@@ -71,7 +78,8 @@ namespace Harmony {
 		/// <summary>
 		///     Stops listening for clients
 		/// </summary>
-		public void StopDiscovery() {
+		public void StopDiscovery()
+		{
 			this.BroadcastCancellationTokenSource.Cancel();
 
 			// should stop the thread as well
@@ -79,14 +87,52 @@ namespace Harmony {
 		}
 
 		/// <summary>
+		///     Gets the device's local IP address
+		/// </summary>
+		/// <returns>A IPv4 IP address string</returns>
+		private static string GetLocalIPAddressString()
+		{
+			IPHostEntry Host = Dns.GetHostEntry(Dns.GetHostName());
+			foreach (IPAddress IP in Host.AddressList)
+				if (IP.AddressFamily == AddressFamily.InterNetwork)
+					return IP.ToString();
+
+			return Host.AddressList.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork)?.ToString()
+				   ?? throw new WebException("No network adapters with an IPv4 address found");
+		}
+
+		/// <summary>
 		///     Broadcasts the probe to 255.255.255.255, falling back to 224.0.0.1
 		/// </summary>
-		private static void Broadcast() {
-			try {
-				DiscoveryService.BroadcastTo("255.255.255.255");
+		private void Broadcast()
+		{
+			try
+			{
+				this.BroadcastTo("255.255.255.255");
 			}
-			catch (SocketException) {
-				DiscoveryService.BroadcastTo("224.0.0.1");
+			catch (SocketException)
+			{
+				this.BroadcastTo("224.0.0.1");
+			}
+		}
+
+		/// <summary>
+		///     Continually broadcasts the probe every 3 seconds
+		/// </summary>
+		/// <param name="token">A token used to cancel the broadcasts</param>
+		private async void BroadcastContinually(CancellationToken token)
+		{
+			try
+			{
+				while (!token.IsCancellationRequested)
+				{
+					this.Broadcast();
+					await Task.Delay(this.RebroadcastDelay, token);
+				}
+			}
+			catch (OperationCanceledException)
+			{
+				// token has been canceled. exit
 			}
 		}
 
@@ -94,68 +140,44 @@ namespace Harmony {
 		///     Broadcasts the probe to a specific IP address
 		/// </summary>
 		/// <param name="ipAddress">The IPv4 address to broadcast to</param>
-		private static void BroadcastTo(string ipAddress) {
+		private void BroadcastTo(string ipAddress)
+		{
 			Socket UDPSocket =
-				new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) {
-					                                                                           EnableBroadcast = true,
-					                                                                           MulticastLoopback = false
-				                                                                           };
+				new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp)
+				{
+					EnableBroadcast = true,
+					MulticastLoopback = false
+				};
 
 			IPEndPoint RemoteEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), DiscoveryService.BroadcastPort);
 			UDPSocket.Connect(RemoteEndPoint);
 
-			byte[] ProbeBytes = Encoding.UTF8.GetBytes(DiscoveryService.GetProbe());
+			byte[] ProbeBytes = Encoding.UTF8.GetBytes(this.GetProbe());
 			UDPSocket.Send(ProbeBytes);
-		}
-
-		/// <summary>
-		///     Gets the device's local IP address
-		/// </summary>
-		/// <returns>A IPv4 IP address string</returns>
-		private static string GetLocalIPAddressString() {
-			IPHostEntry Host = Dns.GetHostEntry(Dns.GetHostName());
-			foreach (IPAddress IP in Host.AddressList)
-				if (IP.AddressFamily == AddressFamily.InterNetwork)
-					return IP.ToString();
-
-			return Host.AddressList.FirstOrDefault(ip => ip.AddressFamily == AddressFamily.InterNetwork)?.ToString()
-			       ?? throw new WebException("No network adapters with an IPv4 address found");
+			UDPSocket.Close();
 		}
 
 		/// <summary>
 		///     Gets the probe that should be broadcast
 		/// </summary>
 		/// <returns>The newline separated probe</returns>
-		private static string GetProbe() =>
-			$"_logitech-reverse-bonjour._tcp.local.\n{DiscoveryService.ListenPort}\n{DiscoveryService.GetLocalIPAddressString()}\nstring";
-
-		/// <summary>
-		///     Continually broadcasts the probe every 3 seconds
-		/// </summary>
-		/// <param name="token">A token used to cancel the broadcasts</param>
-		private async void BroadcastContinually(CancellationToken token) {
-			try {
-				while (!token.IsCancellationRequested) {
-					DiscoveryService.Broadcast();
-					await Task.Delay(this.RebroadcastDelay, token);
-				}
-			}
-			catch (OperationCanceledException) {
-				// token has been canceled. exit
-			}
-		}
+		private string GetProbe() =>
+			$"_logitech-reverse-bonjour._tcp.local.\n{this.ListenPort}\n{DiscoveryService.GetLocalIPAddressString()}\nstring";
 
 		/// <summary>
 		///     Starts listening for tcp clients synchronously
 		/// </summary>
-		private void Listen() {
+		private void Listen()
+		{
 			this.Listener.Start();
 			while (true) // will wait until a client connects
-				try {
+				try
+				{
 					TcpClient Client = this.Listener.AcceptTcpClient();
 					this.OnClientAccepted(Client);
 				}
-				catch (Exception e) when (e is InvalidOperationException || e is SocketException) {
+				catch (Exception e) when (e is InvalidOperationException || e is SocketException)
+				{
 					// we've been canceled, just break
 					break;
 				}
@@ -165,7 +187,8 @@ namespace Harmony {
 		///     Called when a client has been accepted on the listener
 		/// </summary>
 		/// <param name="client">The client that has been accepted</param>
-		private void OnClientAccepted(TcpClient client) {
+		private void OnClientAccepted(TcpClient client)
+		{
 			// Harmony seems to think that the data can never exceed 1024 bytes. Okay I guess
 			byte[] Buffer = new byte[1024];
 			int BytesRead = client.GetStream().Read(Buffer, 0, Buffer.Length);
@@ -184,8 +207,9 @@ namespace Harmony {
 		/// <summary>
 		///     Starts listening for clients to connect after a discovery probe is sent
 		/// </summary>
-		private void StartListening() {
-			this.Listener = new TcpListener(IPAddress.Any, DiscoveryService.ListenPort);
+		private void StartListening()
+		{
+			this.Listener = new TcpListener(IPAddress.Any, this.ListenPort);
 			this.Listener.Start();
 
 			this.ListenThread = new Thread(this.Listen);
