@@ -57,7 +57,13 @@ namespace Harmony.WebSockets {
 		/// </summary>
 		public async void Dispose() {
 			// close then dispose the websocket
-			await this.WebSocket.CloseAsync(WebSocketCloseStatus.Empty, string.Empty, CancellationToken.None);
+			try {
+				await this.WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+			}
+			catch (WebSocketException) {
+				// ignored
+			}
+
 			this.WebSocket.Dispose();
 		}
 
