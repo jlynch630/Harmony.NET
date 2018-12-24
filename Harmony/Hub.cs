@@ -341,7 +341,7 @@ namespace Harmony {
 		/// <param name="functions">The functions to execute</param>
 		/// <returns>When all functions have executed</returns>
 		public async Task PressButtonsAsync(int delay, IEnumerable<Function> functions) {
-			if (delay < 400) delay = 400;
+			//if (delay < 400) delay = 400;
 
 			// avoid enumerating twice
 			Function[] Enumerable = functions as Function[] ?? functions.ToArray();
@@ -539,7 +539,7 @@ namespace Harmony {
 		private void OnHarmonyMessageReceived(object sender, StringResponseEventArgs e) {
 			//// TODO: cyclomatic complexity is 13, make cleaner
 			//// TODO: consolidate command strings into one class
-			Console.WriteLine("Received message: {0} {1}", e.Response.Command, e.Response.Code);
+			//Console.WriteLine("Received message: {0} {1}", e.Response.Command, e.Response.Code);
 			switch (e.Response.Command) {
 				case "harmony.engine?changeChannel":
 					this.OnChannelChanged?.Invoke(this, new SuccessEventArgs(e.Response));
