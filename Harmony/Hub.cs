@@ -287,17 +287,20 @@ namespace Harmony {
 		/// <summary>
 		///     Gets the currently running activity
 		/// </summary>
-		/// <returns>The running activity, or null if there is none running</returns>
-		public Activity GetRunningActivity() {
-			string RunningActivityId = this.GetRunningActivityId();
-			return RunningActivityId != "-1" ? this.GetActivityById(RunningActivityId) : null;
-		}
+		/// <returns>The running activity, or the PowerOff activity if there is none running</returns>
+		public Activity GetRunningActivity() => this.GetActivityById(this.GetRunningActivityId());
 
 		/// <summary>
 		///     Gets the id of the currently running activity
 		/// </summary>
 		/// <returns>The id of the currently running activity, or "-1" if there is none</returns>
 		public string GetRunningActivityId() => this.State.ActivityId;
+
+		/// <summary>
+		///		Gets a value indicating whether there is an activity other than the PowerOff activity running
+		/// </summary>
+		/// <returns>True if an activity with an id other than "-1" is running, false otherwise</returns>
+		public bool IsPoweredOn() => this.GetRunningActivityId() != "-1";
 
 		/// <summary>
 		///     Gets the user's location, favorite channels, and id from the server
