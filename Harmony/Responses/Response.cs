@@ -31,7 +31,7 @@ namespace Harmony.Responses {
 		///     Gets or sets the response data object
 		/// </summary>
 		[JsonProperty("data")]
-		public T Data { get; set; }
+		public virtual T Data { get; set; }
 
 		/// <summary>
 		///     Gets or sets the ID that was used to send the request
@@ -56,7 +56,7 @@ namespace Harmony.Responses {
 		/// </summary>
 		[JsonProperty("data")]
 		[JsonConverter(typeof(KeepSerializedConverter))]
-		public new string Data { get; set; }
+		public override string Data { get; set; }
 
 		/// <summary>
 		///     Deserializes this response's data into the specified type

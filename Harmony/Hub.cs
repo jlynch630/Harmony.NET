@@ -70,7 +70,7 @@ namespace Harmony {
 		public event EventHandler<HarmonyEventArgs<Activity>> OnActivityRan;
 
 		/// <summary>
-		///     Event raised when the Hub has finished changing channels
+		///     Event raised when the Hub has finished changing channels (only if the request was also sent by this <see cref="Hub"/> object)
 		/// </summary>
 		public event EventHandler<SuccessEventArgs> OnChannelChanged;
 
@@ -196,7 +196,7 @@ namespace Harmony {
 		/// <summary>
 		///     Disposes resources used by this <see cref="Hub" />
 		/// </summary>
-		public void Dispose() => this.Connection.Dispose();
+		public void Dispose() => this.Connection?.Dispose();
 
 		/// <summary>
 		///     Ends the currently running activity
@@ -539,8 +539,9 @@ namespace Harmony {
 		private void OnHarmonyMessageReceived(object sender, StringResponseEventArgs e) {
 			//// TODO: cyclomatic complexity is 13, make cleaner
 			//// TODO: consolidate command strings into one class
-			//Console.WriteLine("Received message: {0} {1}", e.Response.Command, e.Response.Code);
+			////Console.WriteLine("Received message: {0} {1}", e.Response.Command, e.Response.Code);
 			switch (e.Response.Command) {
+				case "harmony.engine?changeChannelFinished":
 				case "harmony.engine?changeChannel":
 					this.OnChannelChanged?.Invoke(this, new SuccessEventArgs(e.Response));
 					break;
@@ -578,8 +579,9 @@ namespace Harmony {
 					this.Sync = SyncEventArgs.Response.Data;
 					this.OnHubSynchronized?.Invoke(this, SyncEventArgs);
 					break;
+				// yes the capitalization is different
 				case "connect.statedigest?get":
-				case "connect.statedigest?notify":
+				case "connect.stateDigest?notify":
 					HarmonyEventArgs<StateDigest> StateEventArgs = e.To<StateDigest>();
 					this.State = StateEventArgs.Response.Data;
 					this.OnStateDigestReceived?.Invoke(this, StateEventArgs);
