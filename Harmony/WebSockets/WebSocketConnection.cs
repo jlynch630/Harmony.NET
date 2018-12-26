@@ -81,10 +81,17 @@ namespace Harmony.WebSockets {
 			// we want to generalize them into one Response<T>
 			// incoming messages have the `type` property, and command the `cmd` one.
 			string Message = await this.ReceiveMessage();
-			JObject MessageObject = JObject.Parse(Message);
-			return MessageObject.ContainsKey("cmd")
-				       ? MessageObject.ToObject<StringResponse>()
-				       : MessageObject.ToObject<IncomingMessage>().ToStringResponse();
+
+			try {
+				JObject MessageObject = JObject.Parse(Message);
+				return MessageObject.ContainsKey("cmd")
+					       ? MessageObject.ToObject<StringResponse>()
+					       : MessageObject.ToObject<IncomingMessage>().ToStringResponse();
+			}
+			catch (JsonException) {
+				// failed to deserialize properly, connection likely closed
+				throw new HarmonyException("Failed to receive message from Hub");
+			}
 		}
 
 		/// <summary>

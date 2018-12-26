@@ -93,11 +93,13 @@ namespace Harmony.WebSockets {
 					this.OnMessageReceived?.Invoke(this, new StringResponseEventArgs(Message));
 				}
 			} catch (Exception e) 
-				when (e is InvalidOperationException || e is WebSocketException) {
+				when (e is InvalidOperationException || e is WebSocketException || e is HarmonyException) {
 				// often other parties fail to close websockets correctly,
 				// but avoid throwing an exception if that happens
 				// instead, try to reconnect
-				// TODO
+				if (this.IsDisposed) return;
+
+				// TODO reconnect
 			}	
 		}
 
