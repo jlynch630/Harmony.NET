@@ -57,10 +57,13 @@ namespace Harmony.WebSockets {
 		/// <summary>
 		///     Disposes resources used by this <see cref="T:Harmony.HubConnection" />
 		/// </summary>
-		public async void Dispose() {
+		public virtual async void Dispose() {
 			// close then dispose the websocket
 			try {
 				await this.WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+			}
+			catch (OperationCanceledException) {
+				// ignored
 			}
 			catch (WebSocketException) {
 				// ignored
