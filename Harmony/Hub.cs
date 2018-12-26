@@ -101,12 +101,6 @@ namespace Harmony {
 		public HubInfo Info { get; private set; }
 
 		/// <summary>
-		///     Gets or sets the millisecond difference between repeated commands. For example, setting this to 200 would mean
-		///     sequential commands executed with a default delay of 400ms would have a 600ms delay, then 200ms, then 600ms, etc.
-		/// </summary>
-		public int RepeatedCommandAdjustment { get; set; } = 200;
-
-		/// <summary>
 		///     Gets the last known state of the Hub
 		/// </summary>
 		public StateDigest State { get; private set; }
@@ -335,17 +329,13 @@ namespace Harmony {
 
 		/// <summary>
 		///     Presses multiple buttons on the device, one after the other.
-		///     Minimum delay of 400ms
 		/// </summary>
 		/// <param name="delay">
-		///     The delay between button presses. This will be altered by +/- 200 milliseconds every command, otherwise Harmony
-		///     won't accept the commands
+		///     The delay between successive button presses
 		/// </param>
 		/// <param name="functions">The functions to execute</param>
 		/// <returns>When all functions have executed</returns>
 		public async Task PressButtonsAsync(int delay, IEnumerable<Function> functions) {
-			//if (delay < 400) delay = 400;
-
 			// avoid enumerating twice
 			Function[] Enumerable = functions as Function[] ?? functions.ToArray();
 
@@ -354,23 +344,17 @@ namespace Harmony {
 			// call the first function immediately
 			await this.PressButtonAsync(Enumerable.First());
 
-			// harmony will not accept the command if you send them at too regular intervals. Use an alternating one
-			// TODO: I've done quite a bit of testing that proves this, but I still refuse to believe it
-			int Adjustment = this.RepeatedCommandAdjustment;
 			foreach (Function Function in Enumerable.Skip(1)) {
-				await Task.Delay(delay + Adjustment);
+				await Task.Delay(delay);
 				await this.PressButtonAsync(Function);
-				Adjustment = -Adjustment;
 			}
 		}
 
 		/// <summary>
 		///     Presses multiple buttons on the device, one after the other.
-		///     Minimum delay of 400ms
 		/// </summary>
 		/// <param name="delay">
-		///     The delay between button presses. This will be altered by +/- 200 milliseconds every command:
-		///     otherwise Harmony won't accept the commands
+		///     The delay between button presses.
 		/// </param>
 		/// <param name="functions">The functions to execute</param>
 		/// <returns>When all functions have executed</returns>
@@ -529,7 +513,7 @@ namespace Harmony {
 		/// </summary>
 		private async void HoldFunction() {
 			while (this.HeldDownFunction != null) {
-				await Task.Delay(200);
+				await Task.Delay(200); // delay harmony uses
 				await this.ContinueHoldingAsync();
 			}
 		}
