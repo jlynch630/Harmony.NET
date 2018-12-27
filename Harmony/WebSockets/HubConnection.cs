@@ -7,6 +7,7 @@
 
 namespace Harmony.WebSockets {
 	using System;
+	using System.Diagnostics.CodeAnalysis;
 	using System.Net.WebSockets;
 	using System.Threading.Tasks;
 
@@ -24,6 +25,11 @@ namespace Harmony.WebSockets {
 		///     The ID to use when sending messages over the WebSocket
 		/// </summary>
 		private readonly DeviceID MessageID;
+
+		/// <summary>
+		///		A value indicating whether this <see cref="HubConnection"/> has been disposed or not
+		/// </summary>
+		private bool IsDisposed;
 
 		/// <summary>
 		///     Initializes a new instance of the <see cref="HubConnection" /> class.
@@ -48,6 +54,14 @@ namespace Harmony.WebSockets {
 		}
 
 		/// <summary>
+		///		Disposes resources used by this <see cref="HubConnection"/>
+		/// </summary>
+		public override void Dispose() {
+			this.IsDisposed = true;
+			base.Dispose();
+		}
+
+		/// <summary>
 		///     Sends a command with no parameters
 		/// </summary>
 		/// <param name="commandName">The name of the command to execute</param>
@@ -68,23 +82,25 @@ namespace Harmony.WebSockets {
 		/// <summary>
 		///     Handles listening on the websocket connection
 		/// </summary>
+		[SuppressMessage("StyleCop.CSharp.ReadabilityRules", "SA1107:CodeMustNotContainMultipleStatementsOnOneLine", Justification = "when is just completely mishandled by StyleCop")]
 		public override async void StartListening() {
 			try {
 				// main listening loop
-				while (!this.WebSocket.CloseStatus.HasValue) {
+				while (!this.IsDisposed && !this.WebSocket.CloseStatus.HasValue) {
 					StringResponse Message = await this.ReceiveHarmonyMessage();
 
 					// pass message on
 					this.OnMessageReceived?.Invoke(this, new StringResponseEventArgs(Message));
 				}
-			}
-			catch (WebSocketException) {
+			} catch (Exception e) 
+				when (e is InvalidOperationException || e is WebSocketException || e is HarmonyException) {
 				// often other parties fail to close websockets correctly,
 				// but avoid throwing an exception if that happens
 				// instead, try to reconnect
+				if (this.IsDisposed) return;
 
-				// TODO
-			}
+				// TODO reconnect
+			}	
 		}
 
 		/// <summary>
@@ -97,7 +113,11 @@ namespace Harmony.WebSockets {
 
 			// need to surround in another object, using a string is much easier than using JSON.NET
 			// nevertheless, TODO make this less weird
-			await this.SendMessage("{\"hbus\": " + CommandJson + "}");
+			try {
+				await this.SendMessage("{\"hbus\": " + CommandJson + "}");
+			} catch (WebSocketException) {
+				throw new HarmonyException("Hub closed the connection unexpectedly");
+			}
 
 			return command.ID;
 		}

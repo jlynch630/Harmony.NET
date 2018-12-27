@@ -16,6 +16,8 @@ namespace Harmony.WebSockets {
 
 	using Newtonsoft.Json;
 	using Newtonsoft.Json.Linq;
+	
+	using ClientWebSocket = System.Net.WebSockets.Managed.ClientWebSocket;
 
 	/// <summary>
 	///     A handler for websocket connections
@@ -29,7 +31,7 @@ namespace Harmony.WebSockets {
 		/// <summary>
 		///     Initializes a new instance of the <see cref="WebSocketConnection" /> class.
 		/// </summary>
-		protected WebSocketConnection() => this.WebSocket = new ClientWebSocket();
+		protected WebSocketConnection() => this.WebSocket = new ClientWebSocket();////new ClientWebSocket();
 
 		/// <summary>
 		///     Gets the websocket to communicate over
@@ -55,9 +57,18 @@ namespace Harmony.WebSockets {
 		/// <summary>
 		///     Disposes resources used by this <see cref="T:Harmony.HubConnection" />
 		/// </summary>
-		public async void Dispose() {
+		public virtual async void Dispose() {
 			// close then dispose the websocket
-			await this.WebSocket.CloseAsync(WebSocketCloseStatus.Empty, string.Empty, CancellationToken.None);
+			try {
+				await this.WebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+			}
+			catch (OperationCanceledException) {
+				// ignored
+			}
+			catch (WebSocketException) {
+				// ignored
+			}
+
 			this.WebSocket.Dispose();
 		}
 
@@ -70,10 +81,17 @@ namespace Harmony.WebSockets {
 			// we want to generalize them into one Response<T>
 			// incoming messages have the `type` property, and command the `cmd` one.
 			string Message = await this.ReceiveMessage();
-			JObject MessageObject = JObject.Parse(Message);
-			return MessageObject.ContainsKey("cmd")
-				       ? MessageObject.ToObject<StringResponse>()
-				       : MessageObject.ToObject<IncomingMessage>().ToStringResponse();
+
+			try {
+				JObject MessageObject = JObject.Parse(Message);
+				return MessageObject.ContainsKey("cmd")
+					       ? MessageObject.ToObject<StringResponse>()
+					       : MessageObject.ToObject<IncomingMessage>().ToStringResponse();
+			}
+			catch (JsonException) {
+				// failed to deserialize properly, connection likely closed
+				throw new HarmonyException("Failed to receive message from Hub");
+			}
 		}
 
 		/// <summary>

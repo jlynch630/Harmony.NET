@@ -30,7 +30,7 @@ namespace Harmony {
 		public Location Location { get; set; }
 
 		/// <summary>
-		///     Gets or sets the user's favorite channel prefrences
+		///     Gets or sets the user's favorite channel preferences
 		/// </summary>
 		[JsonProperty("preferences")]
 		public Preferences Preferences { get; set; }

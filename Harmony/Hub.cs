@@ -70,7 +70,7 @@ namespace Harmony {
 		public event EventHandler<HarmonyEventArgs<Activity>> OnActivityRan;
 
 		/// <summary>
-		///     Event raised when the Hub has finished changing channels
+		///     Event raised when the Hub has finished changing channels (only if the request was also sent by this <see cref="Hub"/> object)
 		/// </summary>
 		public event EventHandler<SuccessEventArgs> OnChannelChanged;
 
@@ -99,12 +99,6 @@ namespace Harmony {
 		/// </summary>
 		[JsonProperty]
 		public HubInfo Info { get; private set; }
-
-		/// <summary>
-		///     Gets or sets the millisecond difference between repeated commands. For example, setting this to 200 would mean
-		///     sequential commands executed with a default delay of 400ms would have a 600ms delay, then 200ms, then 600ms, etc.
-		/// </summary>
-		public int RepeatedCommandAdjustment { get; set; } = 200;
 
 		/// <summary>
 		///     Gets the last known state of the Hub
@@ -196,7 +190,7 @@ namespace Harmony {
 		/// <summary>
 		///     Disposes resources used by this <see cref="Hub" />
 		/// </summary>
-		public void Dispose() => this.Connection.Dispose();
+		public void Dispose() => this.Connection?.Dispose();
 
 		/// <summary>
 		///     Ends the currently running activity
@@ -287,17 +281,20 @@ namespace Harmony {
 		/// <summary>
 		///     Gets the currently running activity
 		/// </summary>
-		/// <returns>The running activity, or null if there is none running</returns>
-		public Activity GetRunningActivity() {
-			string RunningActivityId = this.GetRunningActivityId();
-			return RunningActivityId != "-1" ? this.GetActivityById(RunningActivityId) : null;
-		}
+		/// <returns>The running activity, or the PowerOff activity if there is none running</returns>
+		public Activity GetRunningActivity() => this.GetActivityById(this.GetRunningActivityId());
 
 		/// <summary>
 		///     Gets the id of the currently running activity
 		/// </summary>
 		/// <returns>The id of the currently running activity, or "-1" if there is none</returns>
 		public string GetRunningActivityId() => this.State.ActivityId;
+
+		/// <summary>
+		///		Gets a value indicating whether there is an activity other than the PowerOff activity running
+		/// </summary>
+		/// <returns>True if an activity with an id other than "-1" is running, false otherwise</returns>
+		public bool IsPoweredOn() => this.GetRunningActivityId() != "-1";
 
 		/// <summary>
 		///     Gets the user's location, favorite channels, and id from the server
@@ -332,17 +329,13 @@ namespace Harmony {
 
 		/// <summary>
 		///     Presses multiple buttons on the device, one after the other.
-		///     Minimum delay of 400ms
 		/// </summary>
 		/// <param name="delay">
-		///     The delay between button presses. This will be altered by +/- 200 milliseconds every command, otherwise Harmony
-		///     won't accept the commands
+		///     The delay between successive button presses
 		/// </param>
 		/// <param name="functions">The functions to execute</param>
 		/// <returns>When all functions have executed</returns>
 		public async Task PressButtonsAsync(int delay, IEnumerable<Function> functions) {
-			if (delay < 400) delay = 400;
-
 			// avoid enumerating twice
 			Function[] Enumerable = functions as Function[] ?? functions.ToArray();
 
@@ -351,23 +344,17 @@ namespace Harmony {
 			// call the first function immediately
 			await this.PressButtonAsync(Enumerable.First());
 
-			// harmony will not accept the command if you send them at too regular intervals. Use an alternating one
-			// TODO: I've done quite a bit of testing that proves this, but I still refuse to believe it
-			int Adjustment = this.RepeatedCommandAdjustment;
 			foreach (Function Function in Enumerable.Skip(1)) {
-				await Task.Delay(delay + Adjustment);
+				await Task.Delay(delay);
 				await this.PressButtonAsync(Function);
-				Adjustment = -Adjustment;
 			}
 		}
 
 		/// <summary>
 		///     Presses multiple buttons on the device, one after the other.
-		///     Minimum delay of 400ms
 		/// </summary>
 		/// <param name="delay">
-		///     The delay between button presses. This will be altered by +/- 200 milliseconds every command:
-		///     otherwise Harmony won't accept the commands
+		///     The delay between button presses.
 		/// </param>
 		/// <param name="functions">The functions to execute</param>
 		/// <returns>When all functions have executed</returns>
@@ -526,7 +513,7 @@ namespace Harmony {
 		/// </summary>
 		private async void HoldFunction() {
 			while (this.HeldDownFunction != null) {
-				await Task.Delay(200);
+				await Task.Delay(200); // delay harmony uses
 				await this.ContinueHoldingAsync();
 			}
 		}
@@ -539,8 +526,9 @@ namespace Harmony {
 		private void OnHarmonyMessageReceived(object sender, StringResponseEventArgs e) {
 			//// TODO: cyclomatic complexity is 13, make cleaner
 			//// TODO: consolidate command strings into one class
-			Console.WriteLine("Received message: {0} {1}", e.Response.Command, e.Response.Code);
+			////Console.WriteLine("Received message: {0} {1}", e.Response.Command, e.Response.Code);
 			switch (e.Response.Command) {
+				case "harmony.engine?changeChannelFinished":
 				case "harmony.engine?changeChannel":
 					this.OnChannelChanged?.Invoke(this, new SuccessEventArgs(e.Response));
 					break;
@@ -578,8 +566,9 @@ namespace Harmony {
 					this.Sync = SyncEventArgs.Response.Data;
 					this.OnHubSynchronized?.Invoke(this, SyncEventArgs);
 					break;
+				// yes the capitalization is different
 				case "connect.statedigest?get":
-				case "connect.statedigest?notify":
+				case "connect.stateDigest?notify":
 					HarmonyEventArgs<StateDigest> StateEventArgs = e.To<StateDigest>();
 					this.State = StateEventArgs.Response.Data;
 					this.OnStateDigestReceived?.Invoke(this, StateEventArgs);
