@@ -5,10 +5,6 @@ VisualStudioVersion = 15.0.27825.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Harmony", "Harmony\Harmony.csproj", "{D366F6CB-5C47-458B-A414-92A51522FB47}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HarmonyHubTest", "HarmonyHubTest\HarmonyHubTest.csproj", "{9652713E-784D-4F51-B862-91663D673812}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Net461Test", "Net461Test\Net461Test.csproj", "{2DFC36A9-4088-4B13-B7DF-421B16D6B1F9}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Ad-Hoc|Any CPU = Ad-Hoc|Any CPU
